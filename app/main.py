@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
 from app.models import Server
 from app.monitor import ServerMonitor
 
-from app.system_monitor import get_system_metrics, evaluate_system_health
+from app.system_monitor import get_system_metrics, evaluate_system_health, get_top_processes
 
 app = FastAPI(title="ServerWatch API")
 
@@ -58,6 +58,12 @@ def system_health():
         "status": health["status"],
         "reasons": health["reasons"]
     }
+
+@app.get("/system/processes")
+def top_processes(
+    limit: int = Query(default=5, ge=1, le=100)
+):
+    return get_top_processes(limit)
 
 @app.get("/servers/{server_id}")
 def get_server(server_id: str):

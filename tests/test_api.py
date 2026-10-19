@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from app.main import app
+from unittest.mock import patch
 
 client = TestClient(app)
 
@@ -58,3 +59,33 @@ def test_get_nonexistent_server():
     assert response.status_code == 404
     assert response.json()["detail"] == "Server not found"
 
+@patch("app.main.get_system_metrics")
+def test_system_metrics_endpoint(mock_metrics):
+    mock_metrics.return_value = {
+        "cpu_percent": 95.0,
+        "memory_percent": 70.0,
+        "disk_percent": 40.0
+    }
+
+    response = client.get("/system/metrics")
+
+    assert response.status_code == 200
+    assert response.json()[0]["cpu_percent"] == 95.0
+
+@patch("app.main.get_top_processes")
+def test_process_endpoint(mock_processes):
+    mock_processes.return_value = [
+        {
+            "pid": 101,
+            "name": "python",
+            "cpu_percent": 0.0,
+            "memory_percent": 12.5
+        }
+    ]
+
+    response = client.get("/system/processes?limit=1")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["pid"] == 101
+    mock_processes.assert_called_once_with(1)
