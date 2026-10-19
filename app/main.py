@@ -3,6 +3,8 @@ from fastapi import FastAPI, HTTPException
 from app.models import Server
 from app.monitor import ServerMonitor
 
+from app.system_monitor import get_system_metrics, evaluate_system_health
+
 app = FastAPI(title="ServerWatch API")
 
 monitor = ServerMonitor()
@@ -40,6 +42,22 @@ def get_health():
 @app.get("/servers/unhealthy")
 def get_unhealthy():
     return monitor.get_unhealthy_servers()
+
+@app.get("/system/metrics")
+def system_metrics():
+    return get_system_metrics()
+
+@app.get("/system/health")
+def system_health():
+    metrics = get_system_metrics()
+
+    health = evaluate_system_health(metrics)
+
+    return {
+        "metrics": metrics,
+        "status": health["status"],
+        "reasons": health["reasons"]
+    }
 
 @app.get("/servers/{server_id}")
 def get_server(server_id: str):
