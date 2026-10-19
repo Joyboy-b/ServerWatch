@@ -37,3 +37,32 @@ def evaluate_system_health(metrics):
         "status": "UNHEALTHY" if reasons else "HEALTHY",
         "reasons": reasons
     }
+
+def get_top_processes(limit=5):
+    processes = []
+
+    for proc in psutil.process_iter(
+        ["pid", "name", "cpu_percent", "memory_percent"]
+    ):
+        try:
+            info = proc.info
+
+            processes.append({
+                "pid": info["pid"],
+                "name": info["name"],
+                "cpu_percent": info["cpu_percent"] or 0.0,
+                "memory_percent": info["memory_percent"] or 0.0
+            })
+        
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess
+        ):
+            continue
+    processes.sort(
+        key=lambda process: process["memory_percent"],
+        reverse=True
+    )
+
+    return processes[:limit]
