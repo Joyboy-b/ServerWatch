@@ -5,21 +5,27 @@ from app.config import (
     DISK_THRESHOLD
 )
 
-def get_system_metrics():
-    cpu = psutil.cpu_percent(interval=1)
+def get_system_metrics(cpu_interval=None):
+    cpu = psutil.cpu_percent(interval=cpu_interval)
 
     memory = psutil.virtual_memory()
 
     disk = psutil.disk_usage("/")
 
+    total_gb = round(memory.total / (1 << 30), 2)
+
+    available_gb = round(memory.available / (1 << 30), 2)
+
     return {
         "cpu_percent": cpu,
         "memory_percent": memory.percent,
+        "memory_total_gb": total_gb,
+        "memory_available_gb": available_gb,
         "disk_percent": disk.percent
     }
 
 if __name__ == "__main__":
-    print(get_system_metrics())
+    print(get_system_metrics(cpu_interval=1))
 
 def evaluate_system_health(metrics):
     reasons = []

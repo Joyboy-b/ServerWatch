@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 
+
 from app.system_monitor import (
     get_system_metrics,
     evaluate_system_health,
@@ -9,10 +10,55 @@ from app.system_monitor import (
 @patch("app.system_monitor.psutil.disk_usage")
 @patch("app.system_monitor.psutil.virtual_memory")
 @patch("app.system_monitor.psutil.cpu_percent")
+def test_memory_conversion(mock_cpu, mock_memory, mock_disk):
+    mock_cpu.return_value = 20.0
+    mock_memory.return_value = MagicMock(
+        total=8 * (1024 ** 3),
+        available=4 * (1024 ** 3),
+        percent=50.0
+    )
+
+    mock_disk.return_value = MagicMock(percent=30.0)
+
+    result = get_system_metrics()
+
+    assert result["memory_total_gb"] == 8.0
+    assert result["memory_available_gb"] == 4.0
+    assert result["memory_percent"] == 50.0
+
+    mock_memory.assert_called_once_with()
+
+@patch("app.system_monitor.psutil.disk_usage")
+@patch("app.system_monitor.psutil.virtual_memory")
+@patch("app.system_monitor.psutil.cpu_percent")
+def test_memory_rounding(mock_cpu, mock_memory, mock_disk):
+    mock_cpu.return_value = 10.0
+
+    mock_memory.return_value = MagicMock(
+        total=int(7.7567 * (1024 ** 3)),
+        available=int(3.4567 * (1024 ** 3)),
+        percent=55.4
+    )
+
+    mock_disk.return_value = MagicMock(percent=20.0)
+
+    result = get_system_metrics()
+
+    assert result["memory_total_gb"] == 7.76
+    assert result["memory_available_gb"] == 3.46
+
+
+@patch("app.system_monitor.psutil.disk_usage")
+@patch("app.system_monitor.psutil.virtual_memory")
+@patch("app.system_monitor.psutil.cpu_percent")
 def test_get_system_metrics(mock_cpu, mock_memory, mock_disk):
     mock_cpu.return_value = 95.0
 
-    mock_memory.return_value = MagicMock(percent=70.0)
+    mock_memory.return_value = MagicMock(
+        total=16 * (1024 ** 3),
+        available=8 * (1024 ** 3),
+        percent=70.0
+    )
 
     mock_disk.return_value = MagicMock(percent=40.0)
 
@@ -21,10 +67,12 @@ def test_get_system_metrics(mock_cpu, mock_memory, mock_disk):
     assert result == {
         "cpu_percent": 95.0,
         "memory_percent": 70.0,
+        "memory_total_gb": 16.0,
+        "memory_available_gb": 8.0,
         "disk_percent": 40.0
     }
 
-    mock_cpu.assert_called_once_with(interval=1)
+    mock_cpu.assert_called_once_with(interval=None)
     mock_disk.assert_called_once_with("/")
 
 def test_healthy_system():
