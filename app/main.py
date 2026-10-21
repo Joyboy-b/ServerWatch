@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException, Query
-
+from fastapi import FastAPI, HTTPException, Query, Path
+import psutil
 from app.models import Server
 from app.monitor import ServerMonitor
 
-from app.system_monitor import get_system_metrics, evaluate_system_health, get_top_processes
+from app.system_monitor import get_system_metrics, evaluate_system_health, get_top_processes,  get_process_by_pid
 
 app = FastAPI(title="ServerWatch API")
 
@@ -86,3 +86,20 @@ def get_server(server_id: str):
         "status": result["status"],
         "reasons": result["reasons"]
     }
+
+@app.get("/system/processes/{pid}")
+def get_process_endpoint(pid: int = Path(ge=1)):
+    try:
+        return get_process_by_pid(pid)
+
+    except psutil.NoSuchProcess:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Process {pid} not found"
+        )
+
+    except psutil.AccessDenied:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied for process {pid}"
+        )

@@ -1,10 +1,11 @@
 from fastapi.testclient import TestClient
 from app.main import app
 from unittest.mock import patch
+import psutil
 
 client = TestClient(app)
 
-def test_homem():
+def test_home():
     response = client.get("/")
 
     assert response.status_code == 200
@@ -66,6 +67,7 @@ def test_system_metrics_endpoint(mock_metrics):
         "memory_percent": 70.0,
         "memory_total_gb": 16.0,
         "memory_available_gb": 8.0,
+        "memory_used_gb": 9.0,
         "disk_percent": 40.0
     }
 
@@ -101,3 +103,57 @@ def test_process_endpoint(mock_processes):
     assert len(response.json()) == 1
     assert response.json()[0]["pid"] == 101
     mock_processes.assert_called_once_with(1)
+
+
+
+@patch("app.main.get_process_by_pid")
+def test_process_endpoint_success(mock_get_process):
+    mock_get_process.return_value = {
+        "pid": 4321,
+        "name": "python3",
+        "status": "running",
+        "cpu_percent": 12.5,
+        "memory_mb": 128.0
+    }
+
+    response = client.get("/system/processes/4321")
+
+    assert response.status_code == 200
+    assert response.json()["pid"] == 4321
+    assert response.json()["name"] == "python3"
+
+    mock_get_process.assert_called_once_with(4321)
+
+
+@patch("app.main.get_process_by_pid")
+def test_process_endpoint_not_found(mock_get_process):
+    mock_get_process.side_effect = psutil.NoSuchProcess(
+        pid=999999
+    )
+
+    response = client.get("/system/processes/999999")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Process 999999 not found"
+    }
+
+
+@patch("app.main.get_process_by_pid")
+def test_process_endpoint_access_denied(mock_get_process):
+    mock_get_process.side_effect = psutil.AccessDenied(
+        pid=1234
+    )
+
+    response = client.get("/system/processes/1234")
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Access denied for process 1234"
+    }
+
+
+def test_process_endpoint_invalid_pid():
+    response = client.get("/system/processes/0")
+
+    assert response.status_code == 422
